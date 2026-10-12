@@ -9,7 +9,10 @@
 #include <std_msgs/msg/int32_multi_array.h>
 #include <Ticker.h>
 #include "ros2robocar.h"              
-#include "EducarSpiconLib_alpha.1.h" 
+#include "EducarSpiconLib_alpha.1.h"
+#if USE_WIFI_TRANSPORT
+#include <esp_wifi.h>                 //esp_wifi_set_ps() (WiFi省電力設定)
+#endif
 
 void timerloop();                   //タイマー割込み timerloop関数
 Ticker timerLoop; 
@@ -37,6 +40,21 @@ char wifi_pass[]  = "YOUR_PASSWORD";     //WiFiのパスワード
 char agent_ip[]   = "192.168.11.2";     //micro_ros_agentを動かすPCのIPアドレス
 const uint agent_port = 8888;            //agentのUDPポート (全台共通でよい)
 
+//--WiFi省電力モード(modem sleep)を切る
+//  ESP32はSTA接続中デフォルトで省電力(WIFI_PS_MIN_MODEM)になり、受信が数十~数百ms遅れることがある
+//  Arduino層(setSleep)とESP-IDF層(esp_wifi_set_ps)の両方で確実にOFFにする
+void disableWifiPowerSave(){
+  WiFi.setSleep(false);
+  esp_wifi_set_ps(WIFI_PS_NONE);
+}
+
+//--省電力モードの状態を表示
+void printWifiPowerSave(){
+  wifi_ps_type_t ps;
+  esp_wifi_get_ps(&ps);
+  LOG_PRINT("  PowerSave: "); LOG_PRINTLN(ps == WIFI_PS_NONE ? "OFF" : "ON");
+}
+
 //--WiFi状態を文字列にする (シリアル表示用)
 const char* wifiStatusStr(wl_status_t st){
   switch(st){
@@ -58,6 +76,7 @@ void printWifiInfo(){
   LOG_PRINT("  MAC     : "); LOG_PRINTLN(WiFi.macAddress());
   LOG_PRINT("  RSSI    : "); LOG_PRINT(WiFi.RSSI()); LOG_PRINTLN(" dBm");
   LOG_PRINT("  Agent   : "); LOG_PRINT(agent_ip); LOG_PRINT(":"); LOG_PRINTLN(agent_port);
+  printWifiPowerSave();
 }
 
 //--状態を表示しながらWiFiに接続し、micro-ROSのWiFi(UDP)通信を設定する
@@ -65,6 +84,7 @@ void printWifiInfo(){
 void connectWifiTransport(){
   LOG_PRINT("WiFi connecting to \""); LOG_PRINT(wifi_ssid); LOG_PRINT("\" ");
   WiFi.mode(WIFI_STA);
+  disableWifiPowerSave();                          //接続前に省電力OFF
   WiFi.begin(wifi_ssid, wifi_pass);
 
   unsigned long t0 = millis();
@@ -80,7 +100,7 @@ void connectWifiTransport(){
       t0 = millis();
     }
   }
-  WiFi.setSleep(false);                            //WiFi省電力を切って通信遅延を減らす
+  disableWifiPowerSave();                          //接続後にも再設定して通信遅延を減らす
   LOG_PRINTLN("");
   LOG_PRINTLN("WiFi connected");
   printWifiInfo();
@@ -100,6 +120,7 @@ void monitorWifi(){
   wl_status_t st = WiFi.status();
   if(st != last_st){
     if(st == WL_CONNECTED){
+      disableWifiPowerSave();                      //再接続時にも省電力OFFを再設定
       LOG_PRINTLN("WiFi reconnected");
       printWifiInfo();
     }else{
