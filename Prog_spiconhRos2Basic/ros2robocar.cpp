@@ -50,7 +50,8 @@ rclc_executor_t exec_cmdVel;
 rclc_support_t support;    //サポート構造体(１個でいい）
 rcl_allocator_t allocator; //動的メモリ管理用（１個でいい）
 rcl_node_t node;           //node構造体  
-rcl_timer_t timer;         //timer構造体
+rcl_timer_t timer_odom;    //timer構造体 (odom, /tf)
+rcl_timer_t timer_state;   //timer構造体 (whValue, joint_states)
 
 //--odom_tf用変数                        //added odom_tf
 rcl_publisher_t pub_odom_tf;
@@ -171,17 +172,18 @@ bool ros2CreateEntities(){
  RCRETURN(rclc_publisher_init_default(&pub_odom_tf,&node,ROSIDL_GET_MSG_TYPE_SUPPORT(tf2_msgs,msg,TFMessage),"/tf"));           //odom_tf 全台共通の/tfに出す(フレーム名で区別)
  RCRETURN(rclc_publisher_init_default(&pub_jointState,&node,ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs,msg,JointState),"joint_states"));  //jointstate 
    
-  //--create timer_callback for publisher
-  const unsigned int timer_timeout = 10;    //publisher topicの配信時間(ms)
-  RCRETURN(rclc_timer_init_default(&timer,&support,RCL_MS_TO_NS(timer_timeout),timer_callback));
+  //--create timer_callback for publisher (配信周期は ros2robocar.h で設定)
+  RCRETURN(rclc_timer_init_default(&timer_odom,&support,RCL_MS_TO_NS(ODOM_PUB_PERIOD_MS),odom_timer_callback));    //odom, /tf
+  RCRETURN(rclc_timer_init_default(&timer_state,&support,RCL_MS_TO_NS(STATE_PUB_PERIOD_MS),state_timer_callback)); //whValue, joint_states
 
   //--create subscriber 
   RCRETURN(rclc_subscription_init_default(&sub_whCmd,&node,ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32MultiArray),"whCmd"));
   RCRETURN(rclc_subscription_init_default(&sub_cmdVel,&node,ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),"cmd_vel")); //added cmdvel
    
   //--reate executor
-  RCRETURN(rclc_executor_init(&exec_timer, &support.context, 1, &allocator)); //for publiser timer callback
-  RCRETURN(rclc_executor_add_timer(&exec_timer, &timer));                     //
+  RCRETURN(rclc_executor_init(&exec_timer, &support.context, 2, &allocator)); //for publiser timer callback (timer 2個)
+  RCRETURN(rclc_executor_add_timer(&exec_timer, &timer_odom));                //
+  RCRETURN(rclc_executor_add_timer(&exec_timer, &timer_state));               //
   RCRETURN(rclc_executor_init(&exec_whCmd, &support.context, 1, &allocator));   //for exec_whCmd
   RCRETURN(rclc_executor_add_subscription(&exec_whCmd, &sub_whCmd, &msg_whCmd, &sub_whCmd_callback, ON_NEW_DATA)); //
   RCRETURN(rclc_executor_init(&exec_cmdVel, &support.context, 1, &allocator));  //for exec_cmdVel
@@ -205,7 +207,8 @@ void ros2DestroyEntities(){
   RCSOFTCHECK(rcl_publisher_fini(&pub_jointState, &node));
   RCSOFTCHECK(rcl_subscription_fini(&sub_whCmd, &node));
   RCSOFTCHECK(rcl_subscription_fini(&sub_cmdVel, &node));
-  RCSOFTCHECK(rcl_timer_fini(&timer));
+  RCSOFTCHECK(rcl_timer_fini(&timer_odom));
+  RCSOFTCHECK(rcl_timer_fini(&timer_state));
   RCSOFTCHECK(rclc_executor_fini(&exec_timer));
   RCSOFTCHECK(rclc_executor_fini(&exec_whCmd));
   RCSOFTCHECK(rclc_executor_fini(&exec_cmdVel));
@@ -268,24 +271,19 @@ void error_loop(){
   }
 }
 
-//-- publisherのtimer callback
-void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
-{  
-  RCLC_UNUSED(last_call_time);
-  struct timespec tv = {0};
-  clock_gettime(0, &tv);
-
-  //-- agentとのtime sync (同期は接続時にros2CreateEntities()で実施)
+//-- agentとのtime sync済み時刻を取得 (同期は接続時にros2CreateEntities()で実施)
+void updateStampTime(){
   if(rmw_uros_epoch_synchronized()){
     time_ms = rmw_uros_epoch_millis();
-    time_ns = rmw_uros_epoch_nanos();  
+    time_ns = rmw_uros_epoch_nanos();
    }
+}
 
-  //--whValue update
-  msg_whValue.data.data[0] = wh_getAngleL();                   //角度計算関数の実行
-  msg_whValue.data.data[2] = wh_getAngVelL();               //角速度計算関数の実行
-  msg_whValue.data.data[1] = wh_getAngleR();                   //角度計算関数の実行
-  msg_whValue.data.data[3] = wh_getAngVelR();               //角速度計算関数の実行
+//-- odom, /tf のtimer callback (ODOM_PUB_PERIOD_MS周期)
+void odom_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
+{
+  RCLC_UNUSED(last_call_time);
+  updateStampTime();
 
   //--odom updatevoi
   msg_odom.header.frame_id.data = frame_odom;
@@ -314,7 +312,25 @@ void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
   odom_tf->transforms.data[0].transform.rotation.w = cos(rb_getSteeringRadian()); 
   odom_tf->transforms.data[0].header.stamp.nanosec = time_ns; //micros();
   odom_tf->transforms.data[0].header.stamp.sec = time_ms/1000.;   //millis()/1000;
-   
+
+  if (timer != NULL) {
+    RCSOFTCHECK(rcl_publish(&pub_odom, &msg_odom, NULL));   //added odom
+    RCSOFTCHECK(rcl_publish(&pub_odom_tf, odom_tf, NULL));   //added odom_tf
+  }
+}
+
+//-- whValue, joint_states のtimer callback (STATE_PUB_PERIOD_MS周期)
+void state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
+{
+  RCLC_UNUSED(last_call_time);
+  updateStampTime();
+
+  //--whValue update
+  msg_whValue.data.data[0] = wh_getAngleL();                   //角度計算関数の実行
+  msg_whValue.data.data[2] = wh_getAngVelL();               //角速度計算関数の実行
+  msg_whValue.data.data[1] = wh_getAngleR();                   //角度計算関数の実行
+  msg_whValue.data.data[3] = wh_getAngVelR();               //角速度計算関数の実行
+
   //--jointState update
   msg_jointState.header.stamp.nanosec = time_ns;   //micros();
   msg_jointState.header.stamp.sec = time_ms/1000.; //milis()/1000;
@@ -329,8 +345,6 @@ void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
   
   if (timer != NULL) {
     RCSOFTCHECK(rcl_publish(&pub_whValue, &msg_whValue, NULL));
-    RCSOFTCHECK(rcl_publish(&pub_odom, &msg_odom, NULL));   //added odom
-    RCSOFTCHECK(rcl_publish(&pub_odom_tf, odom_tf, NULL));   //added odom_tf
     RCSOFTCHECK(rcl_publish(&pub_jointState, &msg_jointState, NULL));   //jointState
   }
 

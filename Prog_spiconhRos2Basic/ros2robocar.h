@@ -25,8 +25,13 @@ bool ros2CreateEntities();    //agent接続時の生成
 void ros2DestroyEntities();   //切断時の解放
 void error_loop();
 
+//-- publisherの配信周期(ms)
+#define ODOM_PUB_PERIOD_MS   50     //odom, /tf           : 20Hz
+#define STATE_PUB_PERIOD_MS  200    //whValue, joint_states: 5Hz
+
 //-- publisherのtimer callback
-void timer_callback(rcl_timer_t * timer, int64_t last_call_time);
+void odom_timer_callback(rcl_timer_t * timer, int64_t last_call_time);   //odom, /tf
+void state_timer_callback(rcl_timer_t * timer, int64_t last_call_time);  //whValue, joint_states
 
 //-- subscriberのcallback
 void sub_whCmd_callback(const void * msgin);
