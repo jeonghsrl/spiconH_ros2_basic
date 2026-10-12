@@ -1,0 +1,10 @@
+# バックアップ用アーカイブ
+*.zip
+# Google Drive / OS
+desktop.ini
+.DS_Store
+Thumbs.db
+# Arduino build
+build/
+*.bin
+*.elf
