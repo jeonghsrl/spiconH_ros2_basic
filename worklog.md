@@ -3,6 +3,11 @@
 
 ## 重要な変更履歴
 
+### v1.3 (2026-10-13) WiFi設定の分離・GitHub公開
+- SSID・パスワード・agentのIP/ポートを `wifi_config.h` に分離 (Git管理外)
+- 新しい環境では `wifi_config.example.h` をコピーして `wifi_config.h` を作る (ないとコンパイルエラー)
+- GitHub公開のため、過去のコミットからもパスワードを削除 (履歴を書き換えたのでコミットIDが変わった)
+
 ### v1.2 (2026-10-12) 配信周期の変更
 - `odom`・`/tf` を 20Hz (50ms)、`whValue`・`joint_states` を 5Hz (200ms) に変更 (従来は全トピック100Hz)
 - 周期は `ros2robocar.h` の `ODOM_PUB_PERIOD_MS` / `STATE_PUB_PERIOD_MS` で設定
