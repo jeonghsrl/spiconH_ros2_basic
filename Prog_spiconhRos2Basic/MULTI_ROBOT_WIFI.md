@@ -111,13 +111,13 @@ ROS 2の処理を次のように分けました。
 #define USE_WIFI_TRANSPORT  1   // 1: WiFi(UDP)接続  0: USBシリアル接続
 ```
 
-WiFi接続（`1`）の場合は、`Prog_spiconhRos2Basic.ino` の先頭にあるWiFi設定を、実際の環境に合わせて書き換えます。USB接続（`0`）の場合、この設定は使いません。
+WiFi接続（`1`）の場合は、`wifi_config.example.h` をコピーして `wifi_config.h` という名前で保存し、実際の環境に合わせて書き換えます。USB接続（`0`）の場合、この設定は使いません。`wifi_config.h` はパスワードを含むため、`.gitignore` でGit管理外にしています（GitHubには上がりません）。
 
 ```cpp
-char wifi_ssid[]  = "your_ssid";         // WiFiのSSID
-char wifi_pass[]  = "your_password";     // WiFiのパスワード
-char agent_ip[]   = "192.168.1.100";     // micro_ros_agentを動かすPCのIPアドレス
-const uint agent_port = 8888;            // agentのUDPポート（全台共通）
+#define WIFI_SSID   "your_ssid"        // WiFiのSSID
+#define WIFI_PASS   "your_password"    // WiFiのパスワード
+#define AGENT_IP    "192.168.1.100"    // micro_ros_agentを動かすPCのIPアドレス
+#define AGENT_PORT  8888               // agentのUDPポート（全台共通）
 ```
 
 - 全台に**同じプログラム**を書き込みます。ロボットごとに書き換える箇所はありません。

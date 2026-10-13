@@ -1,3 +1,7 @@
+# WiFiパスワードを含む設定 (見本は wifi_config.example.h)
+wifi_config.h
+# パスワード直書きのコピー版 (wifi_config.h方式に移行するまで管理外)
+Prog_spiconhRos2Basic_8889/
 # バックアップ用アーカイブ
 *.zip
 # Google Drive / OS

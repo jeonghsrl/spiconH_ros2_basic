@@ -34,11 +34,17 @@ extern char robot_ns[];                  //MACアドレスから生成した名�
 
 //--接続方法(USB/WiFi)の選択は ros2robocar.h の USE_WIFI_TRANSPORT で行う
 #if USE_WIFI_TRANSPORT
-//--WiFi接続設定 (環境に合わせて変更)
-char wifi_ssid[]  = "YOUR_SSID";         //WiFiのSSID
-char wifi_pass[]  = "YOUR_PASSWORD";     //WiFiのパスワード
-char agent_ip[]   = "192.168.11.2";     //micro_ros_agentを動かすPCのIPアドレス
-const uint agent_port = 8888;            //agentのUDPポート (全台共通でよい)
+//--WiFi接続設定は wifi_config.h に書く (パスワードを含むためGit管理外)
+//  初回は wifi_config.example.h をコピーして wifi_config.h を作り、環境に合わせて変更する
+#if __has_include("wifi_config.h")
+#include "wifi_config.h"
+#else
+#error "wifi_config.h がありません。wifi_config.example.h をコピーして wifi_config.h を作成してください"
+#endif
+char wifi_ssid[]  = WIFI_SSID;           //WiFiのSSID
+char wifi_pass[]  = WIFI_PASS;           //WiFiのパスワード
+char agent_ip[]   = AGENT_IP;            //micro_ros_agentを動かすPCのIPアドレス
+const uint agent_port = AGENT_PORT;      //agentのUDPポート (全台共通でよい)
 
 //--WiFi省電力モード(modem sleep)を切る
 //  ESP32はSTA接続中デフォルトで省電力(WIFI_PS_MIN_MODEM)になり、受信が数十~数百ms遅れることがある
