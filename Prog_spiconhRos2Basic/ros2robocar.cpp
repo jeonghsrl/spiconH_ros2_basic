@@ -137,8 +137,8 @@ void ros2Setup(){
   odom_tf->transforms.data[0].transform.translation.z = 0;     
   odom_tf->transforms.data[0].transform.rotation.x = 0;
   odom_tf->transforms.data[0].transform.rotation.y = 0;
-  odom_tf->transforms.data[0].transform.rotation.z = sin(rb_getSteeringRadian()); 
-  odom_tf->transforms.data[0].transform.rotation.w = cos(rb_getSteeringRadian()); 
+  odom_tf->transforms.data[0].transform.rotation.z = sin(rb_getSteeringRadian()/2.0); //ヨー角phiのクォータニオン (z=sin(phi/2), w=cos(phi/2))
+  odom_tf->transforms.data[0].transform.rotation.w = cos(rb_getSteeringRadian()/2.0);
   odom_tf->transforms.data[0].header.stamp.nanosec = micros();
   odom_tf->transforms.data[0].header.stamp.sec = millis()/1000;
 
@@ -295,8 +295,8 @@ void odom_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
   msg_odom.pose.pose.position.z = 0;      
   msg_odom.pose.pose.orientation.x=0;  
   msg_odom.pose.pose.orientation.y=0; 
-  msg_odom.pose.pose.orientation.z=sin(rb_getSteeringRadian()); 
-  msg_odom.pose.pose.orientation.w=cos(rb_getSteeringRadian()); 
+  msg_odom.pose.pose.orientation.z=sin(rb_getSteeringRadian()/2.0); //ヨー角phiのクォータニオン (z=sin(phi/2), w=cos(phi/2))
+  msg_odom.pose.pose.orientation.w=cos(rb_getSteeringRadian()/2.0);
   msg_odom.twist.twist.linear.x = rb_getFowardVelocity(); 
   msg_odom.twist.twist.angular.z = rb_getSteeringVelocity(); 
   msg_odom.header.stamp.nanosec = time_ns;
@@ -308,8 +308,8 @@ void odom_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
   odom_tf->transforms.data[0].transform.translation.z = 0;     
   odom_tf->transforms.data[0].transform.rotation.x = 0;
   odom_tf->transforms.data[0].transform.rotation.y = 0;
-  odom_tf->transforms.data[0].transform.rotation.z = sin(rb_getSteeringRadian()); 
-  odom_tf->transforms.data[0].transform.rotation.w = cos(rb_getSteeringRadian()); 
+  odom_tf->transforms.data[0].transform.rotation.z = sin(rb_getSteeringRadian()/2.0); //ヨー角phiのクォータニオン (z=sin(phi/2), w=cos(phi/2))
+  odom_tf->transforms.data[0].transform.rotation.w = cos(rb_getSteeringRadian()/2.0);
   odom_tf->transforms.data[0].header.stamp.nanosec = time_ns; //micros();
   odom_tf->transforms.data[0].header.stamp.sec = time_ms/1000.;   //millis()/1000;
 

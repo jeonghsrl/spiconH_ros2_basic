@@ -147,8 +147,8 @@
 - 姿勢角: `phi += dphi * dt`
 
 ### 7.3 姿勢(クォータニオン)の生成
-- 現行実装: `orientation.z = sin(phi)`, `orientation.w = cos(phi)`(`odom`, `/tf` とも)
-- 注意: ヨー角 `phi` の正しいクォータニオンは `z = sin(phi/2)`, `w = cos(phi/2)` である。現行実装では ROS2 側で姿勢角が2倍(`2*phi`)として解釈される
+- ヨー角 `phi` から `orientation.z = sin(phi/2)`, `orientation.w = cos(phi/2)`, `x = y = 0` とする(`odom`, `/tf` とも)
+- v1.3 以前は `z = sin(phi)`, `w = cos(phi)` となっており、ROS2 側で姿勢角が2倍に解釈されていた(v1.4 で修正)
 
 ## 8. 車輪制御仕様
 ### 8.1 角度制御
@@ -216,6 +216,7 @@
 - 2026/10/08: 複数台対応(MAC アドレスによる名前空間、フレーム名)、WiFi/USB 切り替え、agent 自動再接続を追加
 - 2026/10/12: WiFi 省電力モードを無効化(v1.1)、配信周期を odom・tf 20 Hz / whValue・joint_states 5 Hz に変更(v1.2)
 - 2026/10/13: WiFi 接続設定を `wifi_config.h` に分離(v1.3)
+- 2026/10/13: `odom`・`/tf` のクォータニオン計算を修正(v1.4)
 
 ## 13. 補足
 本仕様は現行の実装コードに基づく最小構成の仕様であり、今後は IMU 連携、速度制御の高度化、`cmd_vel` 受信タイムアウトによる停止、ロボット状態管理の追加が可能である。複数台運用の詳細は `Prog_spiconhRos2Basic/MULTI_ROBOT_WIFI.md` を参照。
